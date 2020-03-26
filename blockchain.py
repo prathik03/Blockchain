@@ -7,6 +7,9 @@ from flask import Flask,request
 from flask.json import jsonify
 
 
+class Blockchain():
+    pass
+
 
 class blockchain(object):
 
@@ -17,12 +20,44 @@ class blockchain(object):
 
     @app.route('/mine', methods=['GET'])
     def mine(self):
-        return "We will mine a new block"
+        last_block = blockchain.last_block
+        last_proof = last_block['proof']
+        proof = blockchain.proof_of_work(last_proof)
+
+        blockchain.new_transaction(sender="0",
+                                   recipient= node_identifier,
+                                   amount=1)
+
+        previous_hash = blockchain.__hash__(last_block)
+        block = blockchain.new_block(proof,previous_hash)
+
+        response = {'message': "block forged",
+                    'index' : block['index'],
+                    'transactions' : block['transactions'],
+                    'proof' : block['proof'],
+                    'previous_hash' : block['previous_hash']}
+
+        return jsonify(response),200
 
     @app.route('/transactions/new',methods=['POST'])
     def new_transaction(self):
+        values = request.get_json()
 
-        return "we will add a new transaction"
+        required = ['sender',
+                    'recipient',
+                    'amount']
+
+        if not all(k in values for k in required):
+            return "Missing values",400
+        blockchain.new_transaction(values['sender'],
+                                   values['recipient'],
+                                   values['amount'])
+        block = blockchain.last_block
+        index = block['index']
+
+        response ={'message': f'new transaction will be added to block {index}'}
+        return jsonify(response),201
+
 
     @app.route('/chain',methods=['GET'])
     def full_chain(self):
@@ -31,7 +66,7 @@ class blockchain(object):
         return jsonify(response),200
 
     if __name__=='__main__':
-        app.run(host='0.0.0.0', port=5000)
+        app.run(host='127.0.0.1', port=5000)
 
     def __init__(self):
         self.chain = []
@@ -48,11 +83,11 @@ class blockchain(object):
         return proof
 
     def new_block(self, proof, previous_hash=None):
-        block = {'Index': len(self.chain) + 1,
-                 'Timestamp': time(),
-                 'Transactions': self.current_transaction,
-                 'Proof': proof,
-                 'Previous Hash': previous_hash or self.__hash__(self.chain[-1])
+        block = {'index': len(self.chain) + 1,
+                 'timestamp': time(),
+                 'transactions': self.current_transaction,
+                 'proof': proof,
+                 'previous_hash': previous_hash or self.__hash__(self.chain[-1])
                  }
         self.current_transaction = []
         self.chain.append(block)
